@@ -3,7 +3,7 @@
   import { ref, onValue } from 'firebase/database';
   import { database } from './lib/firebase';
 
-  const deviceName = 'KosanE04-1';
+  const deviceName = 'RoomMonitor1';
 
   /** @type {number | null} */
   let temperature = null;
@@ -186,7 +186,7 @@
 
       <div>
         <p class="eyebrow">
-          ROOM MONITOR
+          ROOM MONITOR - Kosan E04
         </p>
 
         <h1>
