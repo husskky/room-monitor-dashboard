@@ -18,6 +18,9 @@
   let firebaseStatus = 'connecting';
 
   let firebaseError = '';
+  
+  /** @type {'loading' | 'connected' | 'error'} */
+  let dataState = 'loading';
 
   /** @type {'unknown' | 'online' | 'offline'} */
   let deviceStatus = 'unknown';
@@ -28,68 +31,57 @@
   let theme = 'light';
   
 
-  onMount(() => {
+onMount(() => {
+  const savedTheme = localStorage.getItem('room-monitor-theme');
 
-    const savedTheme =
-      localStorage.getItem('room-monitor-theme');
+  if (savedTheme === 'light' || savedTheme === 'dark') {
+    theme = savedTheme;
+  } else {
+    theme = window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
+  }
 
-    if (
-      savedTheme === 'light' ||
-      savedTheme === 'dark'
-    ) {
-      theme = savedTheme;
-    } else {
-      theme = window.matchMedia(
-        '(prefers-color-scheme: dark)'
-      ).matches
-        ? 'dark'
-        : 'light';
-    }
+  document.documentElement.dataset.theme = theme;
 
-    document.documentElement.dataset.theme =
-      theme;
+  const roomMonitorRef = ref(database, deviceName);
 
-    const roomMonitorRef = ref(
-      database,
-      deviceName
-    );
+  const unsubscribe = onValue(
+    roomMonitorRef,
+    (snapshot) => {
+      const data = snapshot.val();
 
-    const unsubscribe = onValue(
-      roomMonitorRef,
-      (snapshot) => {
-        const data = snapshot.val();
+      firebaseStatus = 'connected';
+      firebaseError = '';
 
-        if (data) {
-          temperature = data.Suhu ?? null;
-          humidity = data.KelembapanUdara ?? null;
-          uptime = data.Uptime ?? null;
+      if (data) {
+        temperature = data.Suhu ?? null;
+        humidity = data.KelembapanUdara ?? null;
+        uptime = data.Uptime ?? null;
 
-          firebaseStatus = 'connected';
-          firebaseError = '';
+        dataState = 'connected';
 
-          console.log(
-            'Firebase data:',
-            data
-          );
-        } else {
-          firebaseStatus = 'connected';
-          firebaseError =
-            'Data RoomMonitor1 belum tersedia.';
-        }
-      },
-      (error) => {
-        console.error(
-          'Firebase error:',
-          error
-        );
+        console.log('Firebase data:', data);
+      } else {
+        temperature = null;
+        humidity = null;
+        uptime = null;
 
-        firebaseStatus = 'disconnected';
-        firebaseError = error.message;
+        dataState = 'connected';
+        firebaseError = 'Data RoomMonitor1 belum tersedia.';
       }
-    );
+    },
+    (error) => {
+      console.error('Firebase error:', error);
 
-    return () => unsubscribe();
-  });
+      firebaseStatus = 'disconnected';
+      dataState = 'error';
+      firebaseError = error.message;
+    }
+  );
+
+  return () => unsubscribe();
+});
 
   $: formattedUptime =
     uptime !== null
@@ -320,110 +312,95 @@
 
     </section>
 
-
+    {#if dataState === 'loading'}
+      <div class="state-message">
+        <span class="state-message-indicator state-message-loading"></span>
+        <div>
+          <strong>Loading sensor data</strong>
+          <p>Connecting to RoomMonitor1...</p>
+        </div>
+      </div>
+    {:else if dataState === 'error'}
+      <div class="state-message state-message-error">
+        <span class="state-message-indicator state-message-danger"></span>
+        <div>
+          <strong>Unable to read sensor data</strong>
+          <p>{firebaseError || 'An unknown Firebase error occurred.'}</p>
+        </div>
+      </div>
+    {:else if temperature === null || humidity === null}
+      <div class="state-message">
+        <span class="state-message-indicator state-message-warning"></span>
+        <div>
+          <strong>No sensor data</strong>
+          <p>RoomMonitor1 is connected, but sensor data is not available yet.</p>
+        </div>
+      </div>
+    {/if}
     <!-- SENSOR -->
 
     <section class="section">
-
       <div class="sensor-grid">
-
         <article class="sensor-card">
-
           <p class="sensor-label">
             TEMPERATURE
           </p>
-
           <div class="sensor-value">
-            {temperature !== null
-              ? temperature.toFixed(1)
-              : '--'}
-
+            {temperature !== null ? temperature.toFixed(1) : '--'}
             <span>°C</span>
           </div>
-
           <p class="sensor-description">
             Room temperature
           </p>
-
         </article>
 
-
         <article class="sensor-card">
-
           <p class="sensor-label">
             HUMIDITY
           </p>
-
           <div class="sensor-value">
-            {humidity !== null
-              ? humidity.toFixed(1)
-              : '--'}
-
+            {humidity !== null ? humidity.toFixed(1) : '--'}
             <span>%</span>
           </div>
-
           <p class="sensor-description">
             Relative humidity
           </p>
-
         </article>
-
       </div>
-
     </section>
-
-
     <!-- DEVICE INFORMATION -->
-
     <section class="section device-section">
-
       <div class="section-heading">
         <span>DEVICE</span>
       </div>
-
       <div class="device-details">
-
         <div class="detail-row">
           <span>Connection</span>
-
           <strong>
             {statusLabel(deviceStatus)}
           </strong>
         </div>
-
-
         <div class="detail-row">
           <span>Wi-Fi</span>
-
           <strong>
             {statusLabel(wifiStatus)}
           </strong>
         </div>
-
-
         <div class="detail-row">
           <span>Uptime</span>
-
           <strong>
             {formattedUptime}
           </strong>
         </div>
-
-
         <div class="detail-row">
           <span>Last update</span>
-
           <strong>
             Realtime
           </strong>
         </div>
-
       </div>
-
     </section>
-
   </main>
-
 </div>
 
 <style>
@@ -606,7 +583,6 @@
     color: var(--text-muted);
   }
 
-
   /* =========================================================
      CONNECTION STATUS
      ========================================================= */
@@ -713,6 +689,61 @@
     background: var(--unknown);
   }
 
+.state-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 28px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.state-message > div {
+  min-width: 0;
+}
+
+.state-message strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.state-message p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.state-message-indicator {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--unknown);
+}
+
+.state-message-loading {
+  background: var(--warning);
+}
+
+.state-message-warning {
+  background: var(--warning);
+}
+
+.state-message-danger {
+  background: var(--danger);
+}
+
+.state-message-error {
+  border-color: var(--danger);
+  background: var(--error-bg);
+}
 
   /* =========================================================
      SENSOR SECTION
@@ -797,7 +828,6 @@
     color: var(--text-muted);
   }
 
-
   /* =========================================================
      DEVICE DETAILS
      ========================================================= */
@@ -850,7 +880,6 @@
     font-variant-numeric: tabular-nums;
   }
 
-
   /* =========================================================
      ERROR MESSAGE
      ========================================================= */
@@ -884,7 +913,6 @@
 
     flex: 0 0 auto;
   }
-
 
   /* =========================================================
      TABLET / MOBILE
@@ -969,7 +997,6 @@
       gap: 16px;
     }
   }
-
 
   /* =========================================================
      SMALL MOBILE
