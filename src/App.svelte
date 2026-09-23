@@ -28,6 +28,15 @@
   /** @type {'unknown' | 'connected' | 'disconnected'} */
   let wifiStatus = 'unknown';
 
+  /** @type {string | null} */
+  let deviceIp = null;
+
+  /** @type {number | null} */
+  let deviceRssi = null;
+
+  /** @type {number | null} */
+  let lastSeen = null;
+
   let theme = 'light';
   
 
@@ -270,7 +279,6 @@ onMount(() => {
           </p>
         </article>
 
-
         <article class="status-item">
           <div class="status-item-header">
             <span class="status-name">
@@ -279,37 +287,29 @@ onMount(() => {
 
             <span class="state-indicator state-unknown"></span>
           </div>
-
           <strong class="muted-value">
             {statusLabel(deviceStatus)}
           </strong>
-
           <p>
             ESP32 availability
           </p>
         </article>
-
 
         <article class="status-item">
           <div class="status-item-header">
             <span class="status-name">
               Wi-Fi
             </span>
-
             <span class="state-indicator state-unknown"></span>
           </div>
-
           <strong class="muted-value">
             {statusLabel(wifiStatus)}
           </strong>
-
           <p>
             Device network status
           </p>
         </article>
-
       </div>
-
     </section>
 
     {#if dataState === 'loading'}
