@@ -3,7 +3,7 @@
   import { ref, onValue } from 'firebase/database';
   import { database } from './lib/firebase';
 
-  const deviceName = 'RoomMonitor1';
+  const deviceName = 'KosanE04-1';
 
   /** @type {number | null} */
   let temperature = null;
